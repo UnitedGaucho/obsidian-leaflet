@@ -251,7 +251,7 @@ export default class ObsidianLeaflet extends Plugin {
 
         this.markerIcons = this.generateMarkerMarkup(this.data.markerIcons);
         this.registerMarkdownCodeBlockProcessor(
-            "leaflet",
+            "leaflet-local",
             this.postprocessor.bind(this)
         );
 
@@ -295,7 +295,7 @@ export default class ObsidianLeaflet extends Plugin {
             map?.map?.remove();
             let newPre = createEl("pre");
             newPre.createEl("code", {}, (code) => {
-                code.innerText = `\`\`\`leaflet\n${map.source}\`\`\``;
+                code.innerText = `\`\`\`leaflet-local\n${map.source}\`\`\``;
                 map.el.parentElement.replaceChild(newPre, map.el);
             });
         });
@@ -368,7 +368,7 @@ export default class ObsidianLeaflet extends Plugin {
     }
     get configDirectory() {
         if (!this.data.configDirectory) return;
-        return `${this.data.configDirectory}/plugins/obsidian-leaflet-plugin`;
+        return `${this.data.configDirectory}/plugins/${this.manifest.id}`;
     }
     get configFilePath() {
         if (!this.data.configDirectory) return;

@@ -29,7 +29,7 @@ module.exports = {
                         {
                             search: /(\.|\s|\()L\./g,
                             replace: (match, p1) =>
-                                `${p1}window.OBSIDIAN_LEAFLET_PLUGIN.`
+                                `${p1}window.OBSIDIAN_LEAFLET_LOCAL_TILES.`
                         }
                     ]
                 }

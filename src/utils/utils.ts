@@ -55,7 +55,7 @@ export async function copyToClipboard(loc: L.LatLng): Promise<void> {
 
 export function renderError(el: HTMLElement, error: string): void {
     let pre = createEl("pre", { attr: { id: "leaflet-error" } });
-    pre.setText(`\`\`\`leaflet
+    pre.setText(`\`\`\`leaflet-local
 ${t("There was an error rendering the map")}:
 
 ${error}

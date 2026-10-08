@@ -1,8 +1,9 @@
 import { App, Events, Notice } from "obsidian";
 
 import { parseLink } from "../utils";
-import { ImageLayerData } from "../types";
+import { ImageLayerData } from "../../types";
 import t from "src/l10n/locale";
+import { validateTileManifest } from "../map/local-tiles";
 
 export default class Loader extends Events {
     constructor(public app: App) {
@@ -10,16 +11,7 @@ export default class Loader extends Events {
     }
     async loadImage(id: string, layers: string[]): Promise<void> {
         for (let image of layers) {
-            const { link, id: layerId, alias } = await this.getLink(image);
-
-            const { h, w } = await this.getImageDimensions(link);
-            const layer = {
-                data: link,
-                h,
-                w,
-                alias,
-                id: layerId
-            };
+            const layer = await this.loadLayer(image);
             this.trigger(`${id}-layer-data-ready`, layer);
         }
     }
@@ -28,21 +20,31 @@ export default class Loader extends Events {
         id: string,
         layers: string[]
     ): Promise<ImageLayerData> {
-        return new Promise(async (resolve, reject) => {
-            for (let image of layers) {
-                const { link, id: layerId, alias } = await this.getLink(image);
-
-                const { h, w } = await this.getImageDimensions(link);
-                const layer = {
-                    data: link,
-                    h,
-                    w,
-                    alias,
-                    id: layerId
-                };
-                resolve(layer);
-            }
-        });
+        if (!layers.length) throw new Error("No image layer supplied.");
+        return this.loadLayer(layers[0]);
+    }
+    async loadLayer(image: string): Promise<ImageLayerData> {
+        const [path, alias] = parseLink(decodeURIComponent(image)).split("|");
+        if (path.toLowerCase().endsWith(".leaflet.json")) {
+            const file = this.app.metadataCache.getFirstLinkpathDest(path, "");
+            const manifestPath = file?.path ?? path;
+            const manifest = validateTileManifest(JSON.parse(await this.app.vault.adapter.read(manifestPath)));
+            const parent = manifestPath.includes("/") ? manifestPath.slice(0, manifestPath.lastIndexOf("/") + 1) : "";
+            return {
+                data: manifestPath, h: manifest.height, w: manifest.width,
+                alias: alias || null, id: encodeURIComponent(decodeURIComponent(image)),
+                tiles: {
+                    manifest,
+                    urlForTile: (z, x, y) => this.app.vault.adapter.getResourcePath(
+                        parent + manifest.tilePattern.replace(/\{z\}/g, String(z))
+                            .replace(/\{x\}/g, String(x)).replace(/\{y\}/g, String(y))
+                    )
+                }
+            };
+        }
+        const { link, id, alias: imageAlias } = await this.getLink(image);
+        const { h, w } = await this.getImageDimensions(link);
+        return { data: link, h, w, alias: imageAlias, id };
     }
     unload() {}
     getImageDimensions(url: string): Promise<{ h: number; w: number }> {

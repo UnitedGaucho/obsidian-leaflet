@@ -1,9 +1,9 @@
 import { Platform } from "obsidian";
 import { BlockParameters, LeafletMapOptions, ObsidianAppData } from "../types";
 
-export const OBSIDIAN_LEAFLET_POPOVER_SOURCE = "obsidian-leaflet";
+export const OBSIDIAN_LEAFLET_POPOVER_SOURCE = "leaflet-local-tiles";
 
-export const VIEW_TYPE = "obsidian-leaflet-map-view";
+export const VIEW_TYPE = "leaflet-local-tiles-map-view";
 
 export const DEFAULT_TILE_SERVER =
     "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png";

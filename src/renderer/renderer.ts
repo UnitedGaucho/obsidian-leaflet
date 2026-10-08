@@ -293,7 +293,10 @@ export class LeafletRenderer extends MarkdownRenderChild {
             );
 
             this.map.log(`Loading layer data for ${this.map.id}.`);
-            this.loader.loadImage(this.map.id, [this.options.layers[0]]);
+            this.loader.loadImage(this.map.id, [this.options.layers[0]]).catch(error => {
+                console.error("Leaflet Local Tiles: layer loading failed", error);
+                new Notice(`Leaflet Local Tiles: ${error instanceof Error ? error.message : "Unable to load map layer."}`);
+            });
         }
 
         this.map.on("removed", () => this.resize.disconnect());
@@ -405,7 +408,7 @@ export class LeafletRenderer extends MarkdownRenderChild {
 
         let containsThisMap: boolean = false,
             r = new RegExp(
-                `\`\`\`leaflet[\\s\\S]*?\\bid:(\\s?${this.map.id})\\b\\s*\\n[\\s\\S]*?\`\`\``,
+                `\`\`\`leaflet-local\\s*\\n[\\s\\S]*?\\bid:(\\s?${this.map.id})\\b\\s*\\n[\\s\\S]*?\`\`\``,
                 "g"
             );
         containsThisMap = fileContent.match(r)?.length > 0 || false;

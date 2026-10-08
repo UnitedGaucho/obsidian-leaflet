@@ -17,6 +17,7 @@ import type geojson from "geojson";
 import type ObsidianLeaflet from "src/main";
 
 export interface ImageLayerData {
+    tiles?: import("../src/map/local-tiles").LocalTiles;
     data: string;
     alias: string;
     id: string;

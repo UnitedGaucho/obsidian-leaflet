@@ -1,10 +1,10 @@
 {
-    "id": "obsidian-leaflet-plugin",
-    "name": "Leaflet",
+    "id": "leaflet-local-tiles",
+    "name": "Leaflet Local Tiles",
     "description": "Interactive maps inside your notes",
-    "version": "6.0.5",
+    "version": "6.0.6",
     "minAppVersion": "0.12.12",
-    "author": "Jeremy Valentine",
+    "author": "Jeremy Valentine; local tiled-map fork",
     "repo": "valentine195/obsidian-leaflet-plugin",
-    "isDesktopOnly": false
+    "isDesktopOnly": true
 }

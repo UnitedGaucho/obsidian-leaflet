@@ -7,7 +7,7 @@ declare global {
     }
 }
 
-export const LeafletSymbol = "OBSIDIAN_LEAFLET_PLUGIN";
+export const LeafletSymbol = "OBSIDIAN_LEAFLET_LOCAL_TILES";
 
 const WindowL = window.L;
 if (!window.L) {

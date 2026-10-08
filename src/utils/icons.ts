@@ -14,11 +14,11 @@ import { Icon } from "../types";
 
 library.add(fas);
 
-export const DESCRIPTION_ICON = "obsidian-leaflet-plugin-icon-description";
+export const DESCRIPTION_ICON = "leaflet-local-tiles-icon-description";
 export const DESCRIPTION_ICON_SVG = icon(getIcon("info-circle")).html[0];
-export const BULLSEYE = "obsidian-leaflet-plugin-icon-bullseye";
+export const BULLSEYE = "leaflet-local-tiles-icon-bullseye";
 export const BULLSEYE_ICON_SVG = icon(getIcon("bullseye")).html[0];
-export const VIEW_ICON = "obsidian-leaflet-plugin-icon-map";
+export const VIEW_ICON = "leaflet-local-tiles-icon-map";
 export const VIEW_ICON_SVG = icon(getIcon("map-marked-alt")).html[0];
 
 export const iconNames = Object.values(fas).map((i) => i.iconName);

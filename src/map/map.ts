@@ -58,6 +58,7 @@ import { ShapeProperties } from "src/draw/shape";
 import LayerControl from "src/controls/layers";
 import type { FilterMarkers } from "src/controls/filter";
 import { LockControl, lockControl } from "src/controls/lock";
+import { createLocalTileLayer, BoundedTileLayer } from "./local-tiles";
 
 let L = window[LeafletSymbol];
 declare module "leaflet" {
@@ -1556,9 +1557,9 @@ export class RealMap extends BaseMap {
 }
 export class ImageMap extends BaseMap {
     CRS = L.CRS.Simple;
-    currentLayer: L.ImageOverlay;
+    currentLayer: L.ImageOverlay | BoundedTileLayer;
     dimensions: { h: number; w: number };
-    mapLayers: LayerGroup<L.ImageOverlay>[] = [];
+    mapLayers: LayerGroup<L.ImageOverlay | BoundedTileLayer>[] = [];
     type: "image" = "image";
     readyToRender: boolean;
     get plugin() {
@@ -1591,13 +1592,7 @@ export class ImageMap extends BaseMap {
         }
         this.initialCoords = [coords[0] * mult[0], coords[1] * mult[1]];
     }
-    private _buildMapLayer(layer: {
-        data: string;
-        id: string;
-        alias?: string;
-        h: number;
-        w: number;
-    }): LayerGroup<L.ImageOverlay> {
+    private _buildMapLayer(layer: ImageLayerData): LayerGroup<L.ImageOverlay | BoundedTileLayer> {
         if (!this.mapLayers.length) {
             this.log("map.ts: 1494: Building initial map layer. ");
         }
@@ -1620,10 +1615,18 @@ export class ImageMap extends BaseMap {
             bounds = new L.LatLngBounds(southWest, northEast);
         }
 
-        const mapLayer = L.imageOverlay(layer.data, bounds, {
+        if (layer.tiles && this.options.bounds?.length) {
+            throw new Error("Local tiled maps currently use automatic image bounds. Remove the bounds field.");
+        }
+        const layerOptions = {
             className: this.options.darkMode ? "dark-mode" : "",
             pane: "base-layer"
-        });
+        };
+        const mapLayer = layer.tiles
+            ? createLocalTileLayer(L, layer.tiles, bounds, this.zoom.max - 1, {
+                ...layerOptions, minZoom: this.zoom.min, maxZoom: this.zoom.max
+            }, () => new Notice("Leaflet Local Tiles: a tile could not load. Check that the tile folder is present."))
+            : L.imageOverlay(layer.data, bounds, layerOptions);
 
         const markerGroups = Object.fromEntries(
             this.markerTypes.map((type) => [type, L.layerGroup()])
@@ -1642,7 +1645,7 @@ export class ImageMap extends BaseMap {
             ...Object.values(overlayGroups)
         ]);
 
-        const layerGroup: LayerGroup<L.ImageOverlay> = {
+        const layerGroup: LayerGroup<L.ImageOverlay | BoundedTileLayer> = {
             group: group,
             layer: mapLayer,
             id: layer.id,
