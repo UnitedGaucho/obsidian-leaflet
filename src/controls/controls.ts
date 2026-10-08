@@ -37,9 +37,7 @@ export abstract class FontAwesomeControl extends L.Control {
             icon({ prefix: "fas", iconName: this.icon }).node[0]
         );
         if (this.tooltip) {
-            this.controlEl.children[0].setAttrs({
-                "aria-label": this.tooltip
-            });
+            this.setTooltip(this.tooltip);
         }
         L.DomEvent.on(this.controlEl, "click", (evt: MouseEvent) =>
             this.onClick(evt)
@@ -70,12 +68,14 @@ export abstract class FontAwesomeControl extends L.Control {
     setTooltip(tooltip: string) {
         this.tooltip = tooltip;
         this.controlEl.children[0].setAttrs({
-            "aria-label": this.tooltip
+            "aria-label": this.tooltip,
+            title: this.tooltip
         });
     }
     removeTooltip() {
         this.tooltip = null;
         this.controlEl.children[0].removeAttribute("aria-label");
+        this.controlEl.children[0].removeAttribute("title");
     }
     setIcon(name: IconName) {
         this.iconEl.empty();

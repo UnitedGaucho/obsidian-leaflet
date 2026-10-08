@@ -9,17 +9,11 @@ class ResetZoomControl extends FontAwesomeControl {
         super(opts, map.leafletInstance);
         this.map = map;
         this.map.leafletInstance.on("zoomend zoom zoomstart", () => {
-            this.controlEl.setAttr(
-                "aria-label",
-                `Reset Zoom\nCurrent: ${this.map.leafletInstance.getZoom()}`
-            );
+            this.setTooltip(`Reset Zoom\nCurrent: ${this.map.leafletInstance.getZoom()}`);
         });
     }
     onAdd(leafletMap: Map): HTMLElement {
-        this.controlEl.setAttr(
-            "aria-label",
-            `Reset Zoom\nCurrent: ${this.map.leafletInstance.getZoom()}`
-        );
+        this.setTooltip(`Reset Zoom\nCurrent: ${this.map.leafletInstance.getZoom()}`);
         return this.controlEl;
     }
     onClick(evt: MouseEvent) {
