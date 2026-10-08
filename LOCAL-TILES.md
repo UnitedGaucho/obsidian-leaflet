@@ -66,6 +66,8 @@ The browser test exercises the production loader and tile layer against any
 generated manifest supplied with `--manifest`: all native dimensions, multiple zoom levels,
 both far edges, marker alignment, invalid metadata rejection, no whole-image
 decode, and no HTTP requests. Playwright is a locked development dependency.
+It also verifies toolbar alignment and collapsed/active action visibility under
+both the embedded `leaflet-local` wrapper and the original map-view wrapper.
 On Windows the default browser is installed Microsoft Edge. Elsewhere, install
 Playwright Chromium once with `npx playwright install chromium`.
 

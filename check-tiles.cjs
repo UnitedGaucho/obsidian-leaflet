@@ -38,8 +38,10 @@ const {chromium} = require('playwright');
         }}]});
     const leaf = pathToFileURL(require.resolve('leaflet/dist/leaflet.js')).href;
     const css = pathToFileURL(require.resolve('leaflet/dist/leaflet.css')).href;
+    const pluginCss = pathToFileURL(path.join(__dirname,'styles.css')).href;
     fs.writeFileSync(path.join(output,'check.html'), `<!doctype html><meta charset="utf-8"><link rel="stylesheet" href="${css}">
-        <style>body{margin:0;background:#222}#map{width:1200px;height:900px}</style><div id="map"></div>
+        <link rel="stylesheet" href="${pluginCss}">
+        <style>body{margin:0;background:#222}#map{width:1200px;height:900px}</style><div class="block-language-leaflet-local"><div id="map"></div></div>
         <script src="${leaf}"></script><script src="tiles.js"></script><script src="loader.js"></script>`);
     const browserPath = values.browser || process.env.LEAFLET_BROWSER_PATH;
     if (browserPath && values.channel) throw Error('Choose a browser executable or channel, not both.');
@@ -92,6 +94,41 @@ const {chromium} = require('playwright');
             map.setView(bounds.getCenter(),3);await settled();
             return {requests:requests.length,failures,nativeDimensions:[m.width,m.height],wholeImageDecode:false};
         },{manifest,root,manifestName});
+        // Exercise built toolbar CSS in Obsidian's new code-block wrapper.
+        // These are the control/action classes emitted by the drawing controls.
+        const toolbar = await page.evaluate(() => {
+            const wrapper=document.querySelector('.block-language-leaflet-local');
+            const corner=document.querySelector('.leaflet-top.leaflet-right');
+            const control=document.createElement('div');
+            control.className='leaflet-bar leaflet-control leaflet-control-expandable leaflet-control-draw';
+            control.innerHTML='<a class="leaflet-control-expandable-icon">Draw</a><section class="leaflet-control-expandable-list">'+
+                ['polygon','rectangle','polyline','paint','drag','trash','done'].map(name=>
+                    `<div class="leaflet-bar leaflet-control leaflet-control-has-actions leaflet-control-draw-${name}"><a>${name}</a><div class="control-actions"><div class="leaflet-control"><a>Done</a></div></div></div>`).join('')+'</section>';
+            corner.appendChild(control);
+            const list=control.querySelector('section');
+            const actions=[...control.querySelectorAll('.control-actions')];
+            const visible=el=>getComputedStyle(el).display!=='none';
+            for(const scope of ['block-language-leaflet-local','block-language-leaflet']) {
+                wrapper.className=scope;
+                control.classList.remove('expanded');
+                if(visible(list))throw Error('Collapsed drawing tools visible in '+scope);
+                control.classList.add('expanded');
+                if(!visible(list)||actions.some(visible))throw Error('Inactive drawing actions visible in '+scope);
+                if(visible(control.querySelector('.leaflet-control-expandable-icon')))throw Error('Expanded toolbar icon still visible');
+                const xs=[...list.children].map(el=>el.getBoundingClientRect().left);
+                if(Math.max(...xs)-Math.min(...xs)>1)throw Error('Drawing tool columns are misaligned');
+                actions[0].classList.add('expanded');
+                if(!visible(actions[0])||actions.slice(1).some(visible))throw Error('Active action visibility wrong');
+                actions[0].classList.remove('expanded');
+            }
+            wrapper.className='block-language-leaflet-local';
+            control.classList.remove('expanded');
+            const box=control.getBoundingClientRect();
+            control.remove();
+            if(box.height>50)throw Error('Collapsed toolbar overflows embedded map');
+            return {collapsedToolsHidden:true,inactiveActionsHidden:true,aligned:true,bothScopes:true};
+        });
+        results.toolbar=toolbar;
         await page.screenshot({path:path.join(output,'map-preview.png')});
         if(errors.length)throw Error(errors.join('\n'));
         fs.writeFileSync(path.join(output,'result.json'),JSON.stringify(results,null,2));
