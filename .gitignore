@@ -17,6 +17,8 @@ webpack.dev.js
 
 .env
 backups/
+test-output/
+__pycache__/
 main.js
 styles.css
 main.css

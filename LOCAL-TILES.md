@@ -1,8 +1,8 @@
 # Leaflet Local Tiles
 
 Local source fork of javalent/obsidian-leaflet 6.0.5, retaining its MIT license.
-The `local-tiles` branch adds offline image pyramids. Nothing has been published
-to GitHub. The upstream remote remains available for future maintenance.
+The `local-tiles` branch adds offline image pyramids. The upstream remote remains
+available for future maintenance; this branch is maintained in the GitHub fork.
 
 Plugin ID: `leaflet-local-tiles`. Code block: `leaflet-local`.
 The separate ID, code block, view type and Leaflet global let this plugin coexist
@@ -36,15 +36,22 @@ From this directory:
 
     npm.cmd ci --ignore-scripts --no-audit --no-fund
     npm.cmd run build
-    powershell -NoProfile -File ./install-local.ps1
+    powershell -NoProfile -File ./install-local.ps1 -VaultPath "../map/radiosol-map"
+
+`-VaultPath` is required and accepts any initialized Obsidian vault. The example
+assumes this clone sits beside the RADIOSOL `map` directory. Paths supplied by
+the user resolve relative to the calling shell; build files resolve relative to
+the installer, so it also works when called from another directory.
 
 The installer backs up an existing fork's build files, preserves its settings,
 copies the built plugin and enables its ID for the next vault startup. Restart
 Obsidian to load rebuilt code. Original Leaflet remains installed and enabled.
 
-To generate another map from the workspace root (Python requires Pillow):
+The generator and pixel check are included under `scripts`. They require Python
+3.11 or newer and Pillow. From this repository directory:
 
-    python tools/create_leaflet_tiles.py INPUT.png map/radiosol-map/Maps/NAME.leaflet.json
+    python -m pip install -r scripts/requirements-tiles.txt
+    python scripts/create_leaflet_tiles.py INPUT.png "../map/radiosol-map/Maps/NAME.leaflet.json"
 
 The generator refuses to overwrite an existing pyramid. Use a new NAME to replace
 a map safely, then update its note's image link. Generation briefly needs memory
@@ -53,16 +60,26 @@ the full source.
 
 ## Validation
 
-`tools/check_leaflet_tiles.py` reconstructs an uneven synthetic image and verifies
+`python scripts/check_leaflet_tiles.py` reconstructs an uneven synthetic image and verifies
 exact native pixels, alpha, all levels and transparent edge padding.
-`node check-tiles.cjs` exercises the production loader and tile layer in headless
-Edge against the actual full map: all native dimensions, multiple zoom levels,
+The browser test exercises the production loader and tile layer against any
+generated manifest supplied with `--manifest`: all native dimensions, multiple zoom levels,
 both far edges, marker alignment, invalid metadata rejection, no whole-image
-decode, and no HTTP requests. Output: `tools/leaflet-check/result.json` and preview.
+decode, and no HTTP requests. Playwright is a locked development dependency.
+On Windows the default browser is installed Microsoft Edge. Elsewhere, install
+Playwright Chromium once with `npx playwright install chromium`.
+
+    npm run test:tiles -- --manifest "../map/radiosol-map/Maps/radiosol.leaflet.json"
+
+Use `--browser PATH` (or `LEAFLET_BROWSER_PATH`) for another browser executable,
+or `--channel msedge` / `--channel chrome` for an installed browser channel.
+Use `--output DIR` to choose output storage. The default is the ignored
+`test-output/browser` directory inside this repository, containing `result.json`
+and `map-preview.png`. Python test artifacts use `test-output/python`.
 This does not replace the final live integration check in Obsidian.
 The upstream standalone TypeScript check has unresolved sibling-project imports
 and existing type errors; the production webpack build and runtime checks are
-the validation used here. Diagnostics are in `tools/leaflet-check/typescript.log`.
+the validation used here.
 
 ## Restore
 

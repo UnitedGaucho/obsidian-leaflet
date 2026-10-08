@@ -1,4 +1,9 @@
 # Obsidian Leaflet
+
+This fork's `local-tiles` branch adds **Leaflet Local Tiles**, an offline tiled-image
+plugin that can coexist with the original Leaflet. See [setup, tile generation,
+and testing instructions](LOCAL-TILES.md).
+
 > **Development Status**: Maintenance Mode
 > 
 > Due to a glut of high priority Javalent plugin projects, this plugin is now entering maintenance mode for the time being. This is **not** a permanent status.

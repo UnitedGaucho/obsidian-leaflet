@@ -3,15 +3,30 @@ const fs = require('fs');
 const path = require('path');
 const {pathToFileURL} = require('url');
 const esbuild = require('esbuild');
-const {chromium} = require('C:/Users/mratr/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright');
+const {parseArgs} = require('node:util');
+const {chromium} = require('playwright');
 
 (async () => {
-    const output = path.resolve('../leaflet-check');
+    const {values} = parseArgs({options: {
+        manifest: {type:'string'}, output: {type:'string'},
+        browser: {type:'string'}, channel: {type:'string'}, help: {type:'boolean'}
+    }});
+    if (values.help) {
+        console.log('Usage: node check-tiles.cjs --manifest PATH [--output DIR] [--browser EXECUTABLE | --channel msedge]');
+        return;
+    }
+    if (!values.manifest) throw Error('Supply --manifest with the path to a generated .leaflet.json file.');
+    if (values.browser && values.channel) throw Error('Choose --browser or --channel, not both.');
+    const manifestPath = path.resolve(values.manifest);
+    const manifestName = path.basename(manifestPath);
+    const manifest = JSON.parse(fs.readFileSync(manifestPath,'utf8'));
+    const root = pathToFileURL(path.dirname(manifestPath)+path.sep).href;
+    const output = values.output ? path.resolve(values.output) : path.join(__dirname,'test-output/browser');
     fs.mkdirSync(output, {recursive: true});
-    await esbuild.build({entryPoints: ['src/map/local-tiles.ts'], bundle: true, format: 'iife',
+    await esbuild.build({absWorkingDir:__dirname, entryPoints: ['src/map/local-tiles.ts'], bundle: true, format: 'iife',
         globalName: 'LocalTiles', outfile: path.join(output, 'tiles.js')});
     // Build the actual loader with only Obsidian's host API substituted.
-    await esbuild.build({entryPoints: ['src/worker/loader.ts'], bundle: true, format: 'iife',
+    await esbuild.build({absWorkingDir:__dirname, entryPoints: ['src/worker/loader.ts'], bundle: true, format: 'iife',
         globalName: 'LocalLoader', outfile: path.join(output, 'loader.js'),
         plugins: [{name:'host-stubs',setup(build){
             build.onResolve({filter:/^(obsidian|\.\.\/utils|src\/l10n\/locale)$/}, args => ({path:args.path, namespace:'host'}));
@@ -21,13 +36,16 @@ const {chromium} = require('C:/Users/mratr/.cache/codex-runtimes/codex-primary-r
                 ? 'export const parseLink = s => s.replace(/^!?(\\[\\[)/, "").replace(/\\]\\]$/, "");'
                 : 'export default s => s;'}));
         }}]});
-    const leaf = pathToFileURL(path.resolve('node_modules/leaflet/dist/leaflet.js')).href;
-    const css = pathToFileURL(path.resolve('node_modules/leaflet/dist/leaflet.css')).href;
+    const leaf = pathToFileURL(require.resolve('leaflet/dist/leaflet.js')).href;
+    const css = pathToFileURL(require.resolve('leaflet/dist/leaflet.css')).href;
     fs.writeFileSync(path.join(output,'check.html'), `<!doctype html><meta charset="utf-8"><link rel="stylesheet" href="${css}">
         <style>body{margin:0;background:#222}#map{width:1200px;height:900px}</style><div id="map"></div>
         <script src="${leaf}"></script><script src="tiles.js"></script><script src="loader.js"></script>`);
+    const browserPath = values.browser || process.env.LEAFLET_BROWSER_PATH;
+    if (browserPath && values.channel) throw Error('Choose a browser executable or channel, not both.');
     const browser = await chromium.launch({headless:true,
-        executablePath:'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',
+        ...(browserPath ? {executablePath:path.resolve(browserPath)} :
+            values.channel ? {channel:values.channel} : process.platform === 'win32' ? {channel:'msedge'} : {}),
         args:['--allow-file-access-from-files']});
     try {
         const page = await browser.newPage({viewport:{width:1200,height:900}});
@@ -35,18 +53,15 @@ const {chromium} = require('C:/Users/mratr/.cache/codex-runtimes/codex-primary-r
         page.on('pageerror', e => errors.push(String(e)));
         page.on('request', r => {if(/^https?:/.test(r.url())) errors.push('Unexpected network request: '+r.url());});
         await page.goto(pathToFileURL(path.join(output,'check.html')).href);
-        const vault = path.resolve('../../map/radiosol-map');
-        const manifest = JSON.parse(fs.readFileSync(path.join(vault,'Maps/radiosol.leaflet.json'),'utf8'));
-        const root = pathToFileURL(path.join(vault,'Maps')+path.sep).href;
-        const results = await page.evaluate(async ({manifest,root}) => {
+        const results = await page.evaluate(async ({manifest,root,manifestName}) => {
             const m=LocalTiles.validateTileManifest(manifest);
             for(const bad of [{...m,width:0},{...m,maxLevel:999},{...m,tilePattern:'../escape/{z}/{x}/{y}.png'}]) {
                 let rejected=false;try{LocalTiles.validateTileManifest(bad)}catch{rejected=true}if(!rejected)throw Error('Invalid manifest accepted');
             }
-            const loader=new LocalLoader.default({metadataCache:{getFirstLinkpathDest:()=>({path:'Maps/radiosol.leaflet.json'})},
-                vault:{adapter:{read:async()=>JSON.stringify(m),getResourcePath:p=>root+p.replace(/^Maps\//,'')}}});
+            const loader=new LocalLoader.default({metadataCache:{getFirstLinkpathDest:()=>({path:manifestName})},
+                vault:{adapter:{read:async()=>JSON.stringify(m),getResourcePath:p=>new URL(p,root).href}}});
             loader.getImageDimensions=()=>{throw Error('Attempted whole-image decode for tiled map')};
-            const data=await loader.loadImageAsync('test',['[[Maps/radiosol.leaflet.json]]']);
+            const data=await loader.loadImageAsync('test',[`[[${manifestName}]]`]);
             if(data.w!==m.width || data.h!==m.height || !data.tiles)throw Error('Loader metadata mismatch');
             const map=L.map('map',{crs:L.CRS.Simple,minZoom:1,maxZoom:10,zoomAnimation:false,fadeAnimation:false});
             const bounds=L.latLngBounds(map.unproject([0,m.height],9),map.unproject([m.width,0],9));
@@ -76,7 +91,7 @@ const {chromium} = require('C:/Users/mratr/.cache/codex-runtimes/codex-primary-r
             if(invalid.length || failures)throw Error('Invalid or failed tile requests '+JSON.stringify({invalid,failures}));
             map.setView(bounds.getCenter(),3);await settled();
             return {requests:requests.length,failures,nativeDimensions:[m.width,m.height],wholeImageDecode:false};
-        },{manifest,root});
+        },{manifest,root,manifestName});
         await page.screenshot({path:path.join(output,'map-preview.png')});
         if(errors.length)throw Error(errors.join('\n'));
         fs.writeFileSync(path.join(output,'result.json'),JSON.stringify(results,null,2));

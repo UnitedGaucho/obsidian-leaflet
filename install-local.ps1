@@ -1,6 +1,9 @@
-param([string]$VaultPath = (Join-Path $PSScriptRoot '../../map/radiosol-map'))
+param([Parameter(Mandatory = $true)][string]$VaultPath)
 $ErrorActionPreference = 'Stop'
 $vault = (Resolve-Path -LiteralPath $VaultPath).Path
+if (-not (Test-Path -LiteralPath (Join-Path $vault '.obsidian') -PathType Container)) {
+    throw "Not an initialized Obsidian vault: $vault"
+}
 $plugins = Join-Path $vault '.obsidian/plugins'
 $target = Join-Path $plugins 'leaflet-local-tiles'
 $files = @('main.js', 'styles.css', 'manifest.json', 'main.js.LICENSE.txt', 'LICENSE')
@@ -10,7 +13,7 @@ foreach ($name in $files) {
     }
 }
 if (Test-Path -LiteralPath $target) {
-    $backup = Join-Path $PSScriptRoot ('backups/' + (Get-Date -Format 'yyyyMMdd-HHmmss'))
+    $backup = Join-Path $PSScriptRoot ('backups/' + (Get-Date -Format 'yyyyMMdd-HHmmssfff'))
     New-Item -ItemType Directory -Path $backup -Force | Out-Null
     foreach ($name in $files + @('data.json')) {
         $existing = Join-Path $target $name
@@ -27,9 +30,14 @@ if (-not (Test-Path -LiteralPath $settings) -and (Test-Path -LiteralPath $origin
     Copy-Item -LiteralPath $original -Destination $settings
 }
 $enabledFile = Join-Path $vault '.obsidian/community-plugins.json'
-$enabled = @(Get-Content -Raw -LiteralPath $enabledFile | ConvertFrom-Json)
+$enabled = @()
+if (Test-Path -LiteralPath $enabledFile) {
+    $enabled = @(Get-Content -Raw -LiteralPath $enabledFile | ConvertFrom-Json)
+}
 if ($enabled -notcontains 'leaflet-local-tiles') {
-    Copy-Item -LiteralPath $enabledFile -Destination (Join-Path $target 'community-plugins-before-install.json')
+    if (Test-Path -LiteralPath $enabledFile) {
+        Copy-Item -LiteralPath $enabledFile -Destination (Join-Path $target 'community-plugins-before-install.json')
+    }
     $enabled += 'leaflet-local-tiles'
     ConvertTo-Json -InputObject $enabled | Set-Content -LiteralPath $enabledFile -Encoding utf8
 }
